@@ -1,9 +1,10 @@
 # go-wol-ssh example configuration.
 # Copy to config.yaml and edit with your real machine details.
 
-listen_host: "0.0.0.0"   # interface to bind listeners to
-wake_timeout: 120        # seconds to wait for a machine to become reachable after WOL
-poll_interval: 3         # seconds between reachability checks while waking
+listen_host: "0.0.0.0"          # interface to bind listeners to
+wake_timeout: 120               # seconds to wait for a machine to become reachable after WOL
+poll_interval: 3                # seconds between reachability checks while waking
+keepalive_packets_interval: 30  # seconds between WOL keepalive packets (used when keepalive_packets: true)
 
 machines:
   - label: "Gaming PC"
@@ -13,6 +14,7 @@ machines:
     broadcast: "192.168.100.255"    # subnet broadcast IP
     ssh_port: 22                    # SSH port on the target machine
     wol_port: 9                     # WOL UDP port (7 or 9 are standard)
+    keepalive_packets: true         # send periodic WOL packets while connected to re-wake if the machine suspends
 
   - label: "Workstation"
     port: 2223
@@ -21,3 +23,4 @@ machines:
     broadcast: "192.168.100.255"
     ssh_port: 22
     wol_port: 9
+    keepalive_packets: false

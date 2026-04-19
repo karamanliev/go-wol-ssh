@@ -38,8 +38,9 @@ Create `config.yaml` (see [`config.example.yaml`](./config.example.yaml)):
 
 ```yaml
 listen_host: "0.0.0.0"
-wake_timeout: 120         # seconds to wait for the machine to wake
-poll_interval: 3          # seconds between reachability checks
+wake_timeout: 120               # seconds to wait for the machine to wake
+poll_interval: 3                # seconds between reachability checks
+keepalive_packets_interval: 30  # seconds between WOL keepalive packets
 
 machines:
   - label: "Gaming PC"
@@ -49,6 +50,7 @@ machines:
     broadcast: "192.168.100.255"    # subnet broadcast address
     ssh_port: 22                    # port to proxy/probe on the target
     wol_port: 9                     # WOL UDP port (7 or 9)
+    keepalive_packets: true         # send periodic WOL packets while connected
 
   - label: "Workstation"
     port: 2223
@@ -57,6 +59,7 @@ machines:
     broadcast: "192.168.100.255"
     ssh_port: 22
     wol_port: 9
+    keepalive_packets: false
 ```
 
 ### Field reference
@@ -66,6 +69,7 @@ machines:
 | `listen_host` | no | `0.0.0.0` | Interface to bind all listeners on |
 | `wake_timeout` | no | `120` | Seconds to wait before giving up on a wake |
 | `poll_interval` | no | `3` | Seconds between reachability checks |
+| `keepalive_packets_interval` | no | `30` | Seconds between WOL keepalive packets when `keepalive_packets` is enabled |
 | `machines[].label` | yes | - | Human-readable label (used in logs) |
 | `machines[].port` | yes | - | Port clients connect to; must be unique per machine |
 | `machines[].ip` | yes | - | Target machine's LAN IP |
@@ -73,6 +77,7 @@ machines:
 | `machines[].broadcast` | yes | - | Subnet broadcast address for WOL |
 | `machines[].ssh_port` | no | `22` | Port to probe and proxy on the target |
 | `machines[].wol_port` | no | `9` | UDP port for WOL magic packet |
+| `machines[].keepalive_packets` | no | `false` | Send a WOL packet every `keepalive_packets_interval` seconds while at least one connection is active. If the machine suspends mid-session, this re-wakes it within one interval so the SSH connection can resume without a manual reconnect. |
 
 ## Deployment (Docker)
 

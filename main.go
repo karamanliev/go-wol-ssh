@@ -9,26 +9,29 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"gopkg.in/yaml.v3"
 )
 
 type Machine struct {
-	Label       string `yaml:"label"`
-	Port        int    `yaml:"port"`
-	IP          string `yaml:"ip"`
-	MAC         string `yaml:"mac"`
-	Broadcast   string `yaml:"broadcast"`
-	SSHPort     int    `yaml:"ssh_port"`
-	WOLPort     int    `yaml:"wol_port"`
+	Label             string `yaml:"label"`
+	Port              int    `yaml:"port"`
+	IP                string `yaml:"ip"`
+	MAC               string `yaml:"mac"`
+	Broadcast         string `yaml:"broadcast"`
+	SSHPort           int    `yaml:"ssh_port"`
+	WOLPort           int    `yaml:"wol_port"`
+	KeepAlivePackets  bool   `yaml:"keepalive_packets"`
 }
 
 type Config struct {
-	ListenHost   string    `yaml:"listen_host"`
-	WakeTimeout  int       `yaml:"wake_timeout"`
-	PollInterval int       `yaml:"poll_interval"`
-	Machines     []Machine `yaml:"machines"`
+	ListenHost                string    `yaml:"listen_host"`
+	WakeTimeout               int       `yaml:"wake_timeout"`
+	PollInterval              int       `yaml:"poll_interval"`
+	KeepAlivePacketsInterval  int       `yaml:"keepalive_packets_interval"`
+	Machines                  []Machine `yaml:"machines"`
 }
 
 func loadConfig(path string) (*Config, error) {
@@ -48,6 +51,9 @@ func loadConfig(path string) (*Config, error) {
 	}
 	if c.PollInterval == 0 {
 		c.PollInterval = 3
+	}
+	if c.KeepAlivePacketsInterval == 0 {
+		c.KeepAlivePacketsInterval = 30
 	}
 	for i := range c.Machines {
 		if c.Machines[i].SSHPort == 0 {
@@ -149,8 +155,25 @@ func proxyConn(client net.Conn, m Machine) {
 	wg.Wait()
 }
 
-func handleConnection(client net.Conn, m Machine, cfg *Config) {
+func keepaliveWorker(m Machine, intervalSec int, counter *atomic.Int64) {
+	ticker := time.NewTicker(time.Duration(intervalSec) * time.Second)
+	defer ticker.Stop()
+	for range ticker.C {
+		if n := counter.Load(); n > 0 {
+			log.Printf("[%s] keepalive: sending WOL packet (%d active connection(s))", m.Label, n)
+			if err := sendWOL(m); err != nil {
+				log.Printf("[%s] keepalive: WOL send failed: %v", m.Label, err)
+			}
+		}
+	}
+}
+
+func handleConnection(client net.Conn, m Machine, cfg *Config, counter *atomic.Int64) {
 	defer client.Close()
+	if counter != nil {
+		counter.Add(1)
+		defer counter.Add(-1)
+	}
 	remote := client.RemoteAddr().String()
 	log.Printf("[%s] new connection from %s", m.Label, remote)
 
@@ -178,7 +201,7 @@ func handleConnection(client net.Conn, m Machine, cfg *Config) {
 	proxyConn(client, m)
 }
 
-func listenMachine(m Machine, cfg *Config) {
+func listenMachine(m Machine, cfg *Config, counter *atomic.Int64) {
 	addr := fmt.Sprintf("%s:%d", cfg.ListenHost, m.Port)
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -191,7 +214,7 @@ func listenMachine(m Machine, cfg *Config) {
 			log.Printf("[%s] accept error: %v", m.Label, err)
 			continue
 		}
-		go handleConnection(conn, m, cfg)
+		go handleConnection(conn, m, cfg, counter)
 	}
 }
 
@@ -226,7 +249,13 @@ func main() {
 	}
 
 	for _, m := range cfg.Machines {
-		go listenMachine(m, cfg)
+		var counter *atomic.Int64
+		if m.KeepAlivePackets {
+			counter = &atomic.Int64{}
+			go keepaliveWorker(m, cfg.KeepAlivePacketsInterval, counter)
+			log.Printf("[%s] keepalive packets enabled (interval %ds)", m.Label, cfg.KeepAlivePacketsInterval)
+		}
+		go listenMachine(m, cfg, counter)
 	}
 
 	select {}
