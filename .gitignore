@@ -1,0 +1,13 @@
+# real config stays local
+config.yaml
+
+# local build artifacts
+ssh-wol
+/out/
+*.test
+*.out
+
+# editor / OS
+.vscode/
+.idea/
+.DS_Store

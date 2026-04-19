@@ -1,0 +1,23 @@
+# go-wol-ssh example configuration.
+# Copy to config.yaml and edit with your real machine details.
+
+listen_host: "0.0.0.0"   # interface to bind listeners to
+wake_timeout: 120        # seconds to wait for a machine to become reachable after WOL
+poll_interval: 3         # seconds between reachability checks while waking
+
+machines:
+  - label: "Gaming PC"
+    port: 2222                      # port clients connect to (ssh.domain.com:2222)
+    ip: "192.168.100.2"             # internal IP of the machine
+    mac: "aa:bb:cc:dd:ee:ff"        # MAC address for WOL magic packet
+    broadcast: "192.168.100.255"    # subnet broadcast IP
+    ssh_port: 22                    # SSH port on the target machine
+    wol_port: 9                     # WOL UDP port (7 or 9 are standard)
+
+  - label: "Workstation"
+    port: 2223
+    ip: "192.168.100.3"
+    mac: "11:22:33:44:55:66"
+    broadcast: "192.168.100.255"
+    ssh_port: 22
+    wol_port: 9
