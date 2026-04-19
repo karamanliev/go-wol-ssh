@@ -1,12 +1,12 @@
 # go-wol-ssh
 
 A tiny TCP reverse proxy that wakes sleeping machines via Wake-on-LAN **before**
-forwarding the connection — so `ssh user@ssh.yourdomain.com` just works, even
+forwarding the connection - so `ssh user@ssh.yourdomain.com` just works, even
 when the target machine is powered off.
 
 Inspired by [go-wol-proxy](https://github.com/darksworm/go-wol-proxy), which
 does the same thing for HTTP. `go-wol-ssh` works at the TCP layer, so it can
-wake machines on any port-based protocol (SSH, RDP, VNC, etc.) — no client-side
+wake machines on any port-based protocol (SSH, RDP, VNC, etc.) - no client-side
 `ProxyCommand` or special app support required.
 
 ## How it works
@@ -66,11 +66,11 @@ machines:
 | `listen_host` | no | `0.0.0.0` | Interface to bind all listeners on |
 | `wake_timeout` | no | `120` | Seconds to wait before giving up on a wake |
 | `poll_interval` | no | `3` | Seconds between reachability checks |
-| `machines[].label` | yes | — | Human-readable label (used in logs) |
-| `machines[].port` | yes | — | Port clients connect to; must be unique per machine |
-| `machines[].ip` | yes | — | Target machine's LAN IP |
-| `machines[].mac` | yes | — | Target machine's MAC (colon or dash separated) |
-| `machines[].broadcast` | yes | — | Subnet broadcast address for WOL |
+| `machines[].label` | yes | - | Human-readable label (used in logs) |
+| `machines[].port` | yes | - | Port clients connect to; must be unique per machine |
+| `machines[].ip` | yes | - | Target machine's LAN IP |
+| `machines[].mac` | yes | - | Target machine's MAC (colon or dash separated) |
+| `machines[].broadcast` | yes | - | Subnet broadcast address for WOL |
 | `machines[].ssh_port` | no | `22` | Port to probe and proxy on the target |
 | `machines[].wol_port` | no | `9` | UDP port for WOL magic packet |
 
@@ -119,7 +119,7 @@ Point `ssh.yourdomain.com` at the host (LXC container, VM, etc.) running
    - **IP Address:** `<IP of the machine/LXC running go-wol-ssh>`
 4. Click **Add**.
 
-That's it — Pi-hole picks it up immediately. Verify with:
+That's it - Pi-hole picks it up immediately. Verify with:
 
 ```bash
 dig @<pihole-ip> ssh.yourdomain.com +short
@@ -140,17 +140,9 @@ Verify with:
 dig @<adguard-ip> ssh.yourdomain.com +short
 ```
 
-### WireGuard clients
-
-Make sure your WireGuard peer config:
-
-- Sets the DNS server to your Pi-hole / AdGuard IP (`DNS = 192.168.x.x`).
-- Includes the LAN subnet in `AllowedIPs` so the proxy host is reachable over
-  the tunnel (e.g. `AllowedIPs = 192.168.100.0/24`).
-
 ## Usage
 
-From any SSH client — terminal, Termius on iOS, VS Code Remote, etc.:
+From any SSH client - terminal, Termius on iOS, VS Code Remote, etc.:
 
 ```bash
 ssh -i ~/.ssh/mykey -p 2222 user@ssh.yourdomain.com   # Gaming PC
