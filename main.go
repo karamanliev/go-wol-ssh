@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/exec"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -24,6 +25,7 @@ type Machine struct {
 	SSHPort           int    `yaml:"ssh_port"`
 	WOLPort           int    `yaml:"wol_port"`
 	KeepAlivePackets  bool   `yaml:"keepalive_packets"`
+	OnDisconnect      string `yaml:"on_disconnect"`
 }
 
 type Config struct {
@@ -168,6 +170,16 @@ func keepaliveWorker(m Machine, intervalSec int, counter *atomic.Int64) {
 	}
 }
 
+func runCommand(label, command string) {
+	log.Printf("[%s] on_disconnect: running %q", label, command)
+	cmd := exec.Command("sh", "-c", command)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		log.Printf("[%s] on_disconnect failed: %v: %s", label, err, strings.TrimSpace(string(out)))
+	} else {
+		log.Printf("[%s] on_disconnect done", label)
+	}
+}
+
 func handleConnection(client net.Conn, m Machine, cfg *Config, counter *atomic.Int64) {
 	defer client.Close()
 	if counter != nil {
@@ -177,28 +189,32 @@ func handleConnection(client net.Conn, m Machine, cfg *Config, counter *atomic.I
 	remote := client.RemoteAddr().String()
 	log.Printf("[%s] new connection from %s", m.Label, remote)
 
+	proxied := false
 	if isUp(m, 2*time.Second) {
 		log.Printf("[%s] already awake, proxying immediately", m.Label)
 		proxyConn(client, m)
-		return
+		proxied = true
+	} else {
+		log.Printf("[%s] offline, sending WOL to %s (broadcast %s:%d)", m.Label, m.MAC, m.Broadcast, m.WOLPort)
+		if err := sendWOL(m); err != nil {
+			log.Printf("[%s] WOL send failed: %v", m.Label, err)
+		} else {
+			wakeTimeout := time.Duration(cfg.WakeTimeout) * time.Second
+			pollInterval := time.Duration(cfg.PollInterval) * time.Second
+			log.Printf("[%s] waiting up to %s for SSH port %d...", m.Label, wakeTimeout, m.SSHPort)
+			if !waitForWake(m, wakeTimeout, pollInterval) {
+				log.Printf("[%s] timeout waiting for wake, closing connection from %s", m.Label, remote)
+			} else {
+				log.Printf("[%s] awake, proxying connection from %s", m.Label, remote)
+				proxyConn(client, m)
+				proxied = true
+			}
+		}
 	}
 
-	log.Printf("[%s] offline, sending WOL to %s (broadcast %s:%d)", m.Label, m.MAC, m.Broadcast, m.WOLPort)
-	if err := sendWOL(m); err != nil {
-		log.Printf("[%s] WOL send failed: %v", m.Label, err)
-		return
+	if proxied && m.OnDisconnect != "" {
+		go runCommand(m.Label, m.OnDisconnect)
 	}
-
-	wakeTimeout := time.Duration(cfg.WakeTimeout) * time.Second
-	pollInterval := time.Duration(cfg.PollInterval) * time.Second
-	log.Printf("[%s] waiting up to %s for SSH port %d...", m.Label, wakeTimeout, m.SSHPort)
-	if !waitForWake(m, wakeTimeout, pollInterval) {
-		log.Printf("[%s] timeout waiting for wake, closing connection from %s", m.Label, remote)
-		return
-	}
-
-	log.Printf("[%s] awake, proxying connection from %s", m.Label, remote)
-	proxyConn(client, m)
 }
 
 func listenMachine(m Machine, cfg *Config, counter *atomic.Int64) {

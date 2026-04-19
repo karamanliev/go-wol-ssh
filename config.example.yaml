@@ -15,6 +15,7 @@ machines:
     ssh_port: 22                    # SSH port on the target machine
     wol_port: 9                     # WOL UDP port (7 or 9 are standard)
     keepalive_packets: true         # send periodic WOL packets while connected to re-wake if the machine suspends
+    on_disconnect: "systemctl suspend"  # optional: command to run on the proxy host after each session ends
 
   - label: "Workstation"
     port: 2223
