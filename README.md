@@ -51,7 +51,7 @@ machines:
     ssh_port: 22                    # port to proxy/probe on the target
     wol_port: 9                     # WOL UDP port (7 or 9)
     keepalive_packets: true         # send periodic WOL packets while connected
-    on_disconnect: "systemctl suspend"  # optional: run this command after each session ends
+    on_disconnect: "curl -s ntfy.sh/your-topic -d 'Gaming PC session ended'"  # optional: shell command run on the proxy host after each session ends
 
   - label: "Workstation"
     port: 2223
@@ -79,7 +79,7 @@ machines:
 | `machines[].ssh_port` | no | `22` | Port to probe and proxy on the target |
 | `machines[].wol_port` | no | `9` | UDP port for WOL magic packet |
 | `machines[].keepalive_packets` | no | `false` | Send a WOL packet every `keepalive_packets_interval` seconds while at least one connection is active. If the machine suspends mid-session, this re-wakes it within one interval so the SSH connection can resume without a manual reconnect. |
-| `machines[].on_disconnect` | no | - | Shell command (`sh -c`) to run on the proxy host after a session ends. Only fires when a connection was successfully proxied; skipped if the machine never woke up. Runs in the background so it does not block new connections. |
+| `machines[].on_disconnect` | no | - | Shell command (`sh -c`) run on the **proxy host** (not the target machine) after a session ends. Only fires when a connection was successfully proxied; skipped if the machine never woke up. Runs in the background so it does not block new connections. |
 
 ## Deployment (Docker)
 
